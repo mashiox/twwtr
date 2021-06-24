@@ -1,0 +1,20 @@
+<?php
+/**
+ * Config
+ */
+
+$cfg = array();
+
+$cfg['redis'] = array(
+	'hostname' => '',
+);
+
+$cfg['database'] = array(
+	'hostname' => '',
+	'username' => '',
+	'database' => '',
+	'password' => '',
+);
+
+return $cfg;
+
