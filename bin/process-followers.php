@@ -7,16 +7,38 @@ require_once((dirname(dirname(__FILE__)) . '/src/boot.php'));
 use Edoceo\Radix\DB\SQL;
 use OpenTHC\Config;
 
+$arg = [
+	// 'license:',
+	'code:',
+	'file:',
+];
+$opt = _cli_args($arg);
+
+if (empty($opt['code'])) {
+	throw new \Exception("Must pass license id");
+}
+
+if (empty($opt['file'])) {
+	$opt['file'] = sprintf('/opt/twitter/dash/var/%s-get-followers.json', strtolower($opt['code']));
+}
+
 $cfg = Config::get('database');
 $dsn = sprintf('pgsql:host=%s;dbname=%s', $cfg['hostname'], $cfg['database']);
 
 SQL::init($dsn, $cfg['username'], $cfg['password']);
 
-$User = SQL::fetch_row('SELECT * FROM license WHERE id = :pk', [
-	':pk' => '01F8WJ0TCF7CCG7NR3BBPF3R20',
+// $User = SQL::fetch_row('SELECT * FROM license WHERE id = :pk', [
+// 	':pk' => '',
+// ]);
+$User_Src = SQL::fetch_row('SELECT * FROM license WHERE code = :code', [
+	':code' => $opt['code'],
 ]);
 
-$json = file_get_contents('/opt/twitter/dash/var/get-followers-2.json');
+if (empty($User_Src['id'])) {
+	throw new \Exception('Error processing %s, Twitter License not found', $opt['code']);
+}
+
+$json = file_get_contents($opt['file']);
 $res = json_decode($json, true);
 
 // var_dump(_ulid());
@@ -35,6 +57,7 @@ foreach ($res as $cursor => $data) {
 			':code' => $user['screen_name'],
 		]);
 
+		// Insert new Twitter user
 		if (empty($x)) {
 			$pk = _ulid();
 			$sql = 'INSERT INTO license (id, guid, code, name, meta, hash, type)';
@@ -51,35 +74,25 @@ foreach ($res as $cursor => $data) {
 			SQL::query($sql, $arg);
 			syslog(LOG_INFO, sprintf("[PASS] Insert %s as %s", $user['screen_name'], $pk));
 
-			// $sql = 'INSERT INTO twitter_follower';
-			// $sql.= ' (id, license_id_origin, license_id_follow)';
-			// $sql.= ' VALUES(:pk, :l0, :l1)';
-			// SQL::query($sql, [
-			// 	':pk' => _ulid(),
-			// 	':l0' => $x,
-			// 	':l1' => $User['id'],
-			// ]);
-			// syslog(LOG_INFO, sprintf("[PASS] %s follows %s", $pk, $User['id']));
-
 		} else {
 			syslog(LOG_WARNING, sprintf("[SKIP] Found %s as %s", $user['screen_name'], $x));
+			$pk = $x;
 		}
 
 		// Make follower link if it DNE
 		$sql = 'SELECT id FROM twitter_follower WHERE license_id_origin = :l0 AND license_id_follow = :l1';
 		$res = SQL::fetch_row($sql, [
 			':l0' => $pk,
-			':l1' => $User['id'],
+			':l1' => $User_Src['id'],
 		]);
 		if (empty($res['id'])) {
-			$sql = 'INSERT INTO twitter_follower (id, license_id_origin, license_id_follow)';
-			$sql.= 'VALUES(:pk, :l0, :l1)';
+			$sql = 'INSERT INTO twitter_follower (license_id_origin, license_id_follow)';
+			$sql.= 'VALUES(:l0, :l1)';
 			SQL::query($sql, [
-				':pk' => _ulid(),
 				':l0' => $pk,
-				':l1' => $User['id'],
+				':l1' => $User_Src['id'],
 			]);
-			syslog(LOG_INFO, sprintf("[PASS] %s follows %s", $pk, $User['id']));
+			syslog(LOG_INFO, sprintf("[PASS] %s follows %s", $pk, $User_Src['id']));
 		}
 
 	}

@@ -2,7 +2,6 @@
 /**
  * Twitter
  */
-
 require_once((dirname(dirname(__FILE__)) . '/src/boot.php'));
 
 use App\Service\Twitter;
@@ -25,19 +24,15 @@ if (empty($opt['code'])) {
 	throw new \Exception("Must pass license id");
 }
 if (empty($opt['file'])) {
-	$opt['file'] = '/opt/twitter/dash/var/get-friends.json';
+	$opt['file'] = sprintf('/opt/twitter/dash/var/%s-get-friends.json', strtolower($opt['screen_name']));
 }
-
-var_dump($opt);
 
 $twtr = Twitter::factory();
 
 $res = $twtr->get_friends([
-	// 'user_id' => '16039297',
 	'screen_name' => $opt['code'],
 ]);
 
-// var_dump($res);
 file_put_contents($opt['file'], json_encode($res, JSON_PRETTY_PRINT));
 
 exit(0);

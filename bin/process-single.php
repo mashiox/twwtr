@@ -8,7 +8,7 @@ use Edoceo\Radix\DB\SQL;
 use OpenTHC\Config;
 
 $arg = [
-	'offset:',
+	'code:',
 ];
 $opt = _cli_args($arg);
 
@@ -18,16 +18,15 @@ $dsn = sprintf('pgsql:host=%s;dbname=%s', $cfg['hostname'], $cfg['database']);
 SQL::init($dsn, $cfg['username'], $cfg['password']);
 
 $index = 0;
-if (!empty($opt['offset'])) {
-	$index = intval($opt['offset']);
+if (empty($opt['code'])) {
+	throw new \Exception('Must pass license id');
 }
 
-$User = SQL::fetch_row('SELECT * FROM license ORDER BY ts_created ASC LIMIT 1 OFFSET :idx', [
-	':idx' => $index,
+$User = SQL::fetch_row('SELECT * FROM license WHERE code = :code', [
+	':code' => $opt['code'],
 ]);
-do {
+// do {
 
-	syslog(LOG_INFO, sprintf('Begin processing %s...', $User['code']));
 	var_dump($User['code']);
 
 	$ulid = $User['id'];
@@ -42,7 +41,7 @@ do {
 	$cmd[] = sprintf('>>/opt/twitter/dash/var/%s.out', $ulid);
 	// $cmd[] = '&';
 	var_dump(implode(" ", $cmd));
-	shell_exec(implode(" ", $cmd));
+	// shell_exec(implode(" ", $cmd));
 
 	// Process all friends
 	$cmd = array();
@@ -53,11 +52,11 @@ do {
 	$cmd[] = sprintf('>>/opt/twitter/dash/var/%s-process.out', $ulid);
 	// $cmd[] = '&';
 	var_dump(implode(" ", $cmd));
-	shell_exec(implode(" ", $cmd));
+	// shell_exec(implode(" ", $cmd));
 
 
 	// $ulid = _ulid();
-	$file1 = sprintf('/opt/twitter/dash/var/%s.json', $ulid);
+	$file1 = sprintf('/opt/twitter/dash/var/%s-followers.json', $ulid);
 
 	// Get all followers
 	$cmd = array();
@@ -68,7 +67,7 @@ do {
 	$cmd[] = sprintf('>>/opt/twitter/dash/var/%s.out', $ulid);
 	// $cmd[] = '&';
 	var_dump(implode(" ", $cmd));
-	shell_exec(implode(" ", $cmd));
+	// shell_exec(implode(" ", $cmd));
 
 	// Process all followers
 	$cmd = array();
@@ -79,13 +78,12 @@ do {
 	$cmd[] = sprintf('>>/opt/twitter/dash/var/%s-process.out', $ulid);
 	// $cmd[] = '&';
 	var_dump(implode(" ", $cmd));
-	shell_exec(implode(" ", $cmd));
+	// shell_exec(implode(" ", $cmd));
 
 	// var_dump($index);
 	$index = $index + 1;
-	syslog(LOG_INFO, sprintf('End processing %s.', $User['code']));
 
-	$User = SQL::fetch_row('SELECT * FROM license ORDER BY ts_created ASC LIMIT 1 OFFSET :idx', [
-		':idx' => $index,
-	]);
-} while (!empty($User));
+	// $User = SQL::fetch_row('SELECT * FROM license ORDER BY ts_created ASC LIMIT 1 OFFSET :idx', [
+	// 	':idx' => $index,
+	// ]);
+// } while (!empty($User));
